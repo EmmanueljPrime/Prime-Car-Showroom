@@ -5,6 +5,7 @@ export type CarConfig = {
   position?: [number, number, number] // Position X, Y, Z (défaut: [0, 0, 0])
   rotation?: [number, number, number] // Rotation X, Y, Z (défaut: [0, 0, 0])
   brand?: string
+  brandLogo?: string
   model?: string
   year?: number
   engine?: string
@@ -14,7 +15,7 @@ export type CarConfig = {
   zeroToSixty?: number
   gearbox?: string
 }
-export const CARS = [
+export const CARS: CarConfig[] = [
   {
     name: 'Porsche 1975 911 (930)',
     path: '/models/Porsche-1975-911-930.glb', // Ton fichier actuel
