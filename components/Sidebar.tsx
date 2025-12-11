@@ -1,16 +1,19 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import Image from 'next/image'
 import { CARS, CarConfig } from '@/lib/cars'
 import { organizeGarage } from '@/lib/filters' // Ton nouvel import magique
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronRight, X } from 'lucide-react'
 
 interface SidebarProps {
   currentCar: CarConfig
   onSelect: (car: CarConfig) => void
+  isOpen?: boolean
+  onClose?: () => void
 }
 
-export function Sidebar({ currentCar, onSelect }: SidebarProps) {
+export function Sidebar({ currentCar, onSelect, isOpen = true, onClose }: SidebarProps) {
   // 1. On organise tout le garage au chargement
   const garage = useMemo(() => organizeGarage(CARS), [])
   const brands = Object.keys(garage)
@@ -22,6 +25,28 @@ export function Sidebar({ currentCar, onSelect }: SidebarProps) {
   // Petite astuce : on stocke les familles ouvertes sous forme "Marque/Famille" pour éviter les collisions si deux marques ont une famille "Autres"
   const [openFamilies, setOpenFamilies] = useState<string[]>([])
 
+  useEffect(() => {
+    const brand = currentCar.brand || 'Autre'
+
+    const frame = requestAnimationFrame(() => {
+      setOpenBrands(prev => (prev.includes(brand) ? prev : [...prev, brand]))
+
+      const familiesForBrand = garage[brand]
+      if (!familiesForBrand) return
+
+      const matchingFamily = Object.entries(familiesForBrand).find(([, cars]) =>
+        cars.some(car => car.path === currentCar.path)
+      )
+
+      if (!matchingFamily) return
+
+      const familyKey = `${brand}/${matchingFamily[0]}`
+      setOpenFamilies(prev => (prev.includes(familyKey) ? prev : [...prev, familyKey]))
+    })
+
+    return () => cancelAnimationFrame(frame)
+  }, [currentCar, garage])
+
   const toggleBrand = (brand: string) => {
     setOpenBrands(prev => prev.includes(brand) ? prev.filter(b => b !== brand) : [...prev, brand])
   }
@@ -32,37 +57,55 @@ export function Sidebar({ currentCar, onSelect }: SidebarProps) {
   }
 
   return (
-    <nav className="fixed left-0 top-0 h-full w-80 bg-white/95 backdrop-blur-xl border-r border-zinc-200 p-4 flex flex-col gap-6 pointer-events-auto z-50 overflow-y-auto custom-scrollbar">
-      <h2 className="font-bold text-2xl px-2 text-zinc-900 tracking-tight flex items-center gap-2">
-        GARAGE
-      </h2>
+    <nav
+      className={`
+        fixed left-0 top-0 h-full w-full max-w-sm bg-white/95 backdrop-blur-xl border-r border-zinc-200
+        p-4 flex flex-col gap-6 pointer-events-auto z-50 overflow-y-auto custom-scrollbar
+        transition-transform duration-300 ease-in-out
+        ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+        md:translate-x-0 md:w-80 md:max-w-none
+      `}
+      role="navigation"
+      aria-label="Garage"
+      aria-hidden={!isOpen}
+    >
+      <div className="flex items-center justify-between px-2">
+        <h2 className="font-bold text-2xl text-zinc-900 tracking-tight flex items-center gap-2">
+          GARAGE
+        </h2>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="md:hidden inline-flex items-center justify-center w-8 h-8 rounded-full border border-zinc-200 text-zinc-500 hover:text-zinc-900 hover:border-zinc-300 transition-colors"
+            aria-label="Fermer le garage"
+          >
+            <X size={16} />
+          </button>
+        )}
+      </div>
       
       <div className="flex flex-col gap-3">
         {brands.map(brand => {
-          // On récupère les familles de cette marque (ex: { "911": [...], "Hypercars": [...] })
           const families = garage[brand]
           const familyNames = Object.keys(families)
-          
-          // On chope le logo depuis la première voiture trouvée
-          // (On prend la première voiture de la première famille)
           const firstCar = families[familyNames[0]][0]
-          
           const isBrandOpen = openBrands.includes(brand)
 
           return (
             <div key={brand} className="flex flex-col border border-zinc-100 rounded-xl overflow-hidden bg-zinc-50/50">
-              {/* --- NIVEAU 1 : MARQUE --- */}
               <button 
                 onClick={() => toggleBrand(brand)}
                 className="flex items-center justify-between w-full p-4 hover:bg-white transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   {firstCar.brandLogo && (
-                    <img 
-                      src={firstCar.brandLogo} 
-                      alt={brand} 
-                      className="w-6 h-6 object-contain" 
+                    <Image
+                      src={firstCar.brandLogo}
+                      alt={brand}
+                      width={24}
+                      height={24}
+                      className="h-6 w-6 object-contain"
                     />
                   )}
                   <span className="font-bold text-base text-zinc-800">{brand}</span>
@@ -70,27 +113,22 @@ export function Sidebar({ currentCar, onSelect }: SidebarProps) {
                 {isBrandOpen ? <ChevronDown size={18} className="text-zinc-400"/> : <ChevronRight size={18} className="text-zinc-400"/>}
               </button>
 
-              {/* Contenu de la marque */}
               {isBrandOpen && (
                 <div className="bg-white border-t border-zinc-100 flex flex-col">
                   {familyNames.map(family => {
                     const carsInFamily = families[family]
-                    const isFamilyOpen = openFamilies.includes(`${brand}/${family}`)
-                    
-                    // Cas Spécial : Si la famille s'appelle "Modèles" (défaut) ou n'a qu'une seule voiture, 
-                    // on affiche directement les voitures sans sous-menu pour alléger
+                    const familyKey = `${brand}/${family}`
+                    const isFamilyOpen = openFamilies.includes(familyKey)
                     const showDirectly = family === 'Modèles' || carsInFamily.length === 1
 
                     if (showDirectly) {
                       return carsInFamily.map(car => (
-                        <CarButton key={car.path} car={car} currentCar={currentCar} onSelect={onSelect} />
+                        <CarButton key={car.path} car={car} currentCar={currentCar} onSelect={onSelect} onClose={onClose} />
                       ))
                     }
 
-                    // Sinon, on affiche le sous-menu Famille
                     return (
                       <div key={family} className="flex flex-col">
-                         {/* --- NIVEAU 2 : FAMILLE --- */}
                         <button
                           onClick={() => toggleFamily(brand, family)}
                           className="flex items-center justify-between w-full py-2 px-4 text-xs font-bold text-zinc-500 uppercase tracking-wider hover:bg-zinc-50 hover:text-zinc-900 transition-colors"
@@ -102,13 +140,12 @@ export function Sidebar({ currentCar, onSelect }: SidebarProps) {
                           </div>
                         </button>
 
-                        {/* --- NIVEAU 3 : MODÈLES --- */}
                         {isFamilyOpen && (
-                           <div className="flex flex-col pb-2">
-                             {carsInFamily.map(car => (
-                               <CarButton key={car.path} car={car} currentCar={currentCar} onSelect={onSelect} />
-                             ))}
-                           </div>
+                          <div className="flex flex-col pb-2">
+                            {carsInFamily.map(car => (
+                              <CarButton key={car.path} car={car} currentCar={currentCar} onSelect={onSelect} onClose={onClose} />
+                            ))}
+                          </div>
                         )}
                       </div>
                     )
@@ -124,11 +161,14 @@ export function Sidebar({ currentCar, onSelect }: SidebarProps) {
 }
 
 // Petit composant extrait pour éviter la répétition
-function CarButton({ car, currentCar, onSelect }: { car: CarConfig, currentCar: CarConfig, onSelect: (c: CarConfig) => void }) {
+function CarButton({ car, currentCar, onSelect, onClose }: { car: CarConfig, currentCar: CarConfig, onSelect: (c: CarConfig) => void, onClose?: () => void }) {
   const isSelected = currentCar.path === car.path // Ou car.id si tu as des ids uniques
   return (
     <button
-      onClick={() => onSelect(car)}
+      onClick={() => {
+        onSelect(car)
+        onClose?.()
+      }}
       className={`
         text-left py-2 px-4 text-sm transition-all border-l-2 ml-4
         ${isSelected 
