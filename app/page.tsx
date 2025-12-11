@@ -14,17 +14,17 @@ const Scene = dynamic<{ car: CarConfig; onInitialModelReady: () => void }>(() =>
 
 export default function Home() {
   const [currentCar, setCurrentCar] = useState<CarConfig>(CARS[0])
-  const [isInitialModelReady, setIsInitialModelReady] = useState(false)
+  const [hasSidebarUnlocked, setHasSidebarUnlocked] = useState(false)
 
   const handleInitialModelReady = useCallback(() => {
-    setIsInitialModelReady(true)
+    setHasSidebarUnlocked(true)
   }, [])
 
   return (
     <main className="relative w-full h-screen overflow-hidden pointer-events-none">
-      {isInitialModelReady && (
+      <div className={!hasSidebarUnlocked ? 'opacity-0 pointer-events-none transition-opacity duration-300' : 'transition-opacity duration-300'}>
         <Sidebar currentCar={currentCar} onSelect={setCurrentCar} />
-      )}
+      </div>
       <Scene car={currentCar} onInitialModelReady={handleInitialModelReady} />
     </main>
   )
