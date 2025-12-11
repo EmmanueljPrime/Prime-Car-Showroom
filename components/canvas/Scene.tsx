@@ -1,12 +1,29 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { Environment, OrbitControls, Lightformer, Center } from '@react-three/drei'
+import { Environment, OrbitControls, Lightformer, Center, useProgress } from '@react-three/drei'
 import { Model } from './Model'
 import { CarConfig } from '@/lib/cars'
 import { InitialLoader } from '@/components/InitialLoader'
 
-export default function Scene({ car }: { car: CarConfig }) {
+type SceneProps = {
+  car: CarConfig
+  onInitialModelReady?: () => void
+}
+
+export default function Scene({ car, onInitialModelReady }: SceneProps) {
+  const hasSignaledInitial = useRef(false)
+  const { active, progress } = useProgress()
+
+  useEffect(() => {
+    if (hasSignaledInitial.current) return
+    if (active || progress < 100) return
+
+    hasSignaledInitial.current = true
+    onInitialModelReady?.()
+  }, [active, progress, onInitialModelReady])
+
   return (
     <div className="fixed inset-0 z-10 bg-zinc-100 pointer-events-auto">
       <InitialLoader />
