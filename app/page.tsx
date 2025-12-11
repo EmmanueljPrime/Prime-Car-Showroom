@@ -4,7 +4,6 @@
 import { useState } from 'react'
 import dynamic from 'next/dynamic'
 import { Sidebar } from '@/components/Sidebar'
-import { BackgroundLoader } from '@/components/PreLoader'
 import { InitialLoader } from '@/components/InitialLoader'
 import { CARS, CarConfig } from '@/lib/cars'
 
@@ -19,7 +18,6 @@ export default function Home() {
   return (
     <main className="relative w-full h-screen overflow-hidden pointer-events-none">
       <Sidebar currentCar={currentCar} onSelect={setCurrentCar} />
-      <BackgroundLoader />
       <Scene car={currentCar} />
     </main>
   )

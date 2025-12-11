@@ -17,6 +17,17 @@ export function InitialLoader() {
     }
   }, [active, progress, shouldHide])
 
+  // Si un nouveau chargement démarre, on ré-affiche le loader
+  useEffect(() => {
+    if (!active) return
+
+    const frame = requestAnimationFrame(() => {
+      setShouldHide(false)
+    })
+
+    return () => cancelAnimationFrame(frame)
+  }, [active])
+
   // On masque complètement le loader
   if (shouldHide) {
     return null

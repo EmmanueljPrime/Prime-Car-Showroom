@@ -40,3 +40,18 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 
 script pour les .glb 
+import { dedup, prune, textureCompress, resample } from '@gltf-transform/functions';
+
+await document.transform(
+    // 1. Nettoyage de base sans risque
+    dedup(),
+    prune(),
+    resample(),
+
+    // 2. Compression des textures UNIQUEMENT (Le vrai gain de mémoire est ici)
+    // On passe en WebP, max 2048px (suffisant pour une voiture web)
+    textureCompress({ 
+        targetFormat: 'webp', 
+        resize: [2048, 2048] 
+    }),
+);
