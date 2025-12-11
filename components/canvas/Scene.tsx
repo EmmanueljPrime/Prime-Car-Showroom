@@ -1,14 +1,15 @@
 'use client'
 
 import { Canvas } from '@react-three/fiber'
-import { Environment, OrbitControls, ContactShadows, Lightformer, Center } from '@react-three/drei'
+import { Environment, OrbitControls, Lightformer, Center } from '@react-three/drei'
 import { Model } from './Model'
-import { CarConfig } from '@/lib/cars' // On importe le type
-
+import { CarConfig } from '@/lib/cars'
+import { InitialLoader } from '@/components/InitialLoader'
 
 export default function Scene({ car }: { car: CarConfig }) {
   return (
     <div className="fixed inset-0 z-10 bg-zinc-100 pointer-events-auto">
+      <InitialLoader />
       <Canvas
         shadows
         dpr={[1, 2]}

@@ -1,26 +1,34 @@
-// app/page.tsx
 'use client'
 
 import { useState } from 'react'
 import dynamic from 'next/dynamic'
 import { Sidebar } from '@/components/Sidebar'
-import { CARS, CarConfig } from '@/lib/cars' // Import du type
+import { BackgroundLoader } from '@/components/PreLoader' // Le discret
+import { CARS, CarConfig } from '@/lib/cars'
 
-const Scene = dynamic(() => import('@/components/canvas/Scene'), { ssr: false, loading: () => null })
+// La scène contient l'InitialLoader (le gros) car useProgress ne marche que DANS ou À CÔTÉ du Canvas
+const Scene = dynamic(() => import('@/components/canvas/Scene'), { 
+  ssr: false,
+  // Pendant que le fichier Scene.js se télécharge, on affiche un écran blanc simple
+  loading: () => <div className="fixed inset-0 bg-zinc-100 z-[200]" /> 
+})
 
 export default function Home() {
-  // On stocke l'objet voiture ENTIER
   const [currentCar, setCurrentCar] = useState<CarConfig>(CARS[0])
 
   return (
     <main className="relative w-full h-screen overflow-hidden pointer-events-none">
-      <Sidebar 
-        currentCar={currentCar} // On renomme la prop pour être cohérent
-        onSelect={setCurrentCar} 
-      />
+      
+      {/* 1. Sidebar (UI) */}
+      <Sidebar currentCar={currentCar} onSelect={setCurrentCar} />
 
-      {/* On passe l'objet complet à la scène */}
+      {/* 2. Loader d'arrière-plan (UI Discrète) */}
+      {/* Il se lance tout seul et charge les autres voitures une par une */}
+      <BackgroundLoader />
+
+      {/* 3. Scène 3D */}
       <Scene car={currentCar} />
+      
     </main>
   )
 }
