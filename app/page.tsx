@@ -73,9 +73,9 @@ export default function Home() {
             isOpen={isSidebarOpen}
             onClose={handleCloseSidebar}
           />
+          <CarSpec car={currentCar} />
         </>
       )}
-      <CarSpec car={currentCar} />
       <Scene car={currentCar} onInitialModelReady={handleInitialModelReady} />
     </main>
   )
