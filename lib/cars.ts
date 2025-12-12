@@ -15,6 +15,7 @@ export type CarConfig = {
   weight?: number
   zeroToSixty?: number
   gearbox?: string
+  groundOffset?: number
   maxSpeed?: number
 }
 export const CARS: CarConfig[] = [

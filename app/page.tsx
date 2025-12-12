@@ -8,14 +8,17 @@ import { InitialLoader } from '@/components/InitialLoader'
 import { CARS, CarConfig } from '@/lib/cars'
 import { CarSpec } from '@/components/CarSpec'
 import { Menu } from 'lucide-react'
+import { ENVIRONMENTS, type EnvironmentConfig } from '@/lib/environments'
+import { EnvSelector } from '@/components/EnvSelector'
 
-const Scene = dynamic<{ car: CarConfig; onInitialModelReady: () => void }>(() => import('@/components/canvas/Scene'), {
+const Scene = dynamic<{ car: CarConfig; env?: EnvironmentConfig; onInitialModelReady: () => void }>(() => import('@/components/canvas/Scene'), {
   ssr: false,
   loading: () => <InitialLoader />
 })
 
 export default function Home() {
   const [currentCar, setCurrentCar] = useState<CarConfig>(CARS[0])
+  const [currentEnv, setCurrentEnv] = useState(ENVIRONMENTS[0])
   const [hasSidebarUnlocked, setHasSidebarUnlocked] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
@@ -73,10 +76,11 @@ export default function Home() {
             isOpen={isSidebarOpen}
             onClose={handleCloseSidebar}
           />
+          <EnvSelector currentEnv={currentEnv} onChange={setCurrentEnv} />
           <CarSpec car={currentCar} />
         </>
       )}
-      <Scene car={currentCar} onInitialModelReady={handleInitialModelReady} />
+      <Scene car={currentCar} env={currentEnv} onInitialModelReady={handleInitialModelReady} />
     </main>
   )
 }
