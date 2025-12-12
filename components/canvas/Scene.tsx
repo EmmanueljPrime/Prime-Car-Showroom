@@ -1,19 +1,14 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Canvas } from '@react-three/fiber'
+import { Canvas, useLoader } from '@react-three/fiber'
 import { Environment, OrbitControls, Lightformer, Center, useProgress, ContactShadows } from '@react-three/drei'
 import { Box3, Group } from 'three'
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js'
 import { Model } from './Model'
 import { CarConfig } from '@/lib/cars'
 import { InitialLoader } from '@/components/InitialLoader'
 import { ENVIRONMENTS, type EnvironmentConfig } from '@/lib/environments'
-
-type SceneProps = {
-  car: CarConfig
-  env?: EnvironmentConfig
-  onInitialModelReady?: () => void
-}
 
 const DEFAULT_ENV: EnvironmentConfig = {
   id: 'studio',
@@ -24,31 +19,73 @@ const DEFAULT_ENV: EnvironmentConfig = {
 }
 
 const GROUND_CLEARANCE = 0.02
+const DREI_CDN = 'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/'
+
+const HDRI_PRESET_FILES: Record<Exclude<EnvironmentConfig['preset'], 'studio'>, string> = {
+  sunset: 'venice_sunset_1k.hdr',
+  dawn: 'kiara_1_dawn_1k.hdr',
+  night: 'dikhololo_night_1k.hdr',
+  warehouse: 'empty_warehouse_01_1k.hdr',
+  forest: 'rainforest_trail_1k.hdr',
+  apartment: 'lebombo_1k.hdr',
+  city: 'potsdamer_platz_1k.hdr',
+  park: 'rooitou_park_1k.hdr',
+  lobby: 'st_fagans_interior_1k.hdr',
+}
+
+function EnvPreloader() {
+
+  const presetsToLoad = useMemo(() => {
+    return ENVIRONMENTS
+      .map(e => e.preset)
+      .filter(p => p !== 'studio') 
+      .filter((value, index, self) => self.indexOf(value) === index)
+  }, [])
+
+  const files = useMemo(() => {
+    return presetsToLoad
+      .map(preset => HDRI_PRESET_FILES[preset as keyof typeof HDRI_PRESET_FILES])
+      .filter((file): file is string => Boolean(file))
+      .map(file => `${DREI_CDN}${file}`)
+  }, [presetsToLoad])
+
+  useLoader(RGBELoader, files)
+
+  return null
+}
+
+// --- SCENE PRINCIPALE ---
+
+type SceneProps = {
+  car: CarConfig
+  env?: EnvironmentConfig
+  onInitialModelReady?: () => void
+}
 
 export default function Scene({ car, env, onInitialModelReady }: SceneProps) {
   const activeEnv = env ?? DEFAULT_ENV
   const hasSignaledInitial = useRef(false)
   const centerRef = useRef<Group | null>(null)
   const [groundY, setGroundY] = useState(0)
+  
   const { active, progress } = useProgress()
 
   useEffect(() => {
-    const preload = (Environment as unknown as { preload?: (preset: EnvironmentConfig['preset']) => void }).preload
-    if (!preload) return
-
-    const uniquePresets = new Set(ENVIRONMENTS.map(envOption => envOption.preset))
-    uniquePresets.forEach(preset => preload(preset))
-  }, [])
-
-  useEffect(() => {
     hasSignaledInitial.current = false
-
-    const frame = requestAnimationFrame(() => {
-      setGroundY(0)
-    })
-
+    const frame = requestAnimationFrame(() => setGroundY(0))
     return () => cancelAnimationFrame(frame)
   }, [car.path])
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      const group = centerRef.current
+      if (!group) return
+      const bounds = new Box3().setFromObject(group)
+      const clearance = car.groundOffset ?? GROUND_CLEARANCE
+      setGroundY(bounds.min.y - clearance)
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [car, progress])
 
   useEffect(() => {
     if (hasSignaledInitial.current) return
@@ -57,19 +94,6 @@ export default function Scene({ car, env, onInitialModelReady }: SceneProps) {
     hasSignaledInitial.current = true
     onInitialModelReady?.()
   }, [active, progress, onInitialModelReady])
-
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => {
-      const group = centerRef.current
-      if (!group) return
-
-      const bounds = new Box3().setFromObject(group)
-      const clearance = car.groundOffset ?? GROUND_CLEARANCE
-      setGroundY(bounds.min.y - clearance)
-    })
-
-    return () => cancelAnimationFrame(frame)
-  }, [car, progress])
 
   const containerStyle = useMemo(() => {
     return activeEnv.backgroundColor ? { backgroundColor: activeEnv.backgroundColor } : undefined
@@ -85,6 +109,9 @@ export default function Scene({ car, env, onInitialModelReady }: SceneProps) {
       <InitialLoader />
 
       <Canvas shadows dpr={[1, 2]} camera={{ position: [4, 1.5, 4], fov: 45 }}>
+        
+        <EnvPreloader />
+
         {activeEnv.backgroundColor && (
           <color attach="background" args={[activeEnv.backgroundColor]} />
         )}
