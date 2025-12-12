@@ -119,6 +119,27 @@ export default function Scene({ car, env, onInitialModelReady }: SceneProps) {
         <ambientLight intensity={0.8} />
         <spotLight position={[10, 10, 10]} angle={0.2} penumbra={1} intensity={Math.PI} />
 
+        {activeEnv.preset === 'night' && (
+          <group>
+            <spotLight
+              position={[-2, 5, 2]}
+              angle={0.35}
+              penumbra={1}
+              intensity={20}
+              distance={10}
+              color="#ffe7b5"
+              castShadow
+            />
+            <pointLight
+              position={[10, 10, 10]}
+              intensity={5}
+              distance={10}
+              decay={2}
+              color="#ffd8a8"
+            />
+          </group>
+        )}
+
         <group>
           <Center
             key={car.path}
