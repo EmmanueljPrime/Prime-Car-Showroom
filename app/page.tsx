@@ -4,7 +4,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { Sidebar } from '@/components/Sidebar'
-import { InitialLoader } from '@/components/InitialLoader'
 import { CARS, CarConfig } from '@/lib/cars'
 import { CarSpec } from '@/components/CarSpec'
 import { Menu } from 'lucide-react'
@@ -13,7 +12,6 @@ import { EnvSelector } from '@/components/EnvSelector'
 
 const Scene = dynamic<{ car: CarConfig; env?: EnvironmentConfig; onInitialModelReady: () => void }>(() => import('@/components/canvas/Scene'), {
   ssr: false,
-  loading: () => <InitialLoader />
 })
 
 export default function Home() {

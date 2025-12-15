@@ -1,47 +1,77 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useGLTF } from '@react-three/drei'
-import { CARS } from '@/lib/cars'
+// import { useGLTF } from '@react-three/drei' // <-- Plus besoin pour l'instant
+import { Environment } from '@react-three/drei' // <-- On a besoin de ça pour le preload
+// import { CARS } from '@/lib/cars' // <-- On commente les voitures
+import { ENVIRONMENTS } from '@/lib/environments' // <-- On importe les environnements
 
 export function BackgroundLoader() {
   const [loadedCount, setLoadedCount] = useState(0)
-  const total = CARS.length
   
-  // On ne veut pas charger la voiture actuelle deux fois, 
-  // on suppose que la Scène s'en occupe. On charge les autres.
+  // On filtre pour ne garder que les presets uniques (ex: pas besoin de charger 'city' 2 fois)
+  // et on enlève 'studio' qui n'a pas de fichier à télécharger.
+  const presetsToLoad = ENVIRONMENTS
+    .map(e => e.preset)
+    .filter(p => p !== 'studio')
+    .filter((value, index, self) => self.indexOf(value) === index)
+
+  const total = presetsToLoad.length // On change le total pour baser sur les environnements
   
   useEffect(() => {
     let mounted = true
     
     const preloadAll = async () => {
-      // On charge séquentiellement pour ne pas bloquer le réseau
+      // --- PARTIE VOITURE COMMENTÉE (OFF) ---
+      /*
       for (const car of CARS) {
         if (!mounted) break
-        
         try {
-          // useGLTF.preload met le fichier dans le cache Blob du navigateur
           await useGLTF.preload(car.path)
           setLoadedCount(prev => prev + 1)
         } catch (e) {
           console.error(`Erreur chargement ${car.name}`, e)
         }
       }
+      */
+
+      // --- NOUVELLE PARTIE : ENVIRONNEMENTS (ON) ---
+      // On récupère la fonction preload cachée dans le composant Environment de Drei
+      const preloadEnv = (Environment as any).preload
+      
+      if (!preloadEnv) return
+
+      for (const preset of presetsToLoad) {
+        if (!mounted) break
+        
+        try {
+          // On déclenche le téléchargement du HDRI
+          // Note : preloadEnv n'est pas toujours une Promise, mais on le traite comme une action
+          preloadEnv(preset)
+          
+          // On simule un petit délai pour l'UX (optionnel) ou on incrémente direct
+          // Comme on ne peut pas savoir exactement quand le HDRI est fini sans être dans le Canvas,
+          // on suppose que le déclenchement est un succès.
+          setLoadedCount(prev => prev + 1)
+        } catch (e) {
+          console.error(`Erreur chargement env ${preset}`, e)
+        }
+      }
     }
 
-    // On attend un peu que la page soit interactive avant de bourriner le réseau
+    // Petit délai avant de lancer pour laisser la priorité au chargement initial de la page
     const timeout = setTimeout(() => {
       preloadAll()
-    }, 2000)
+    }, 1000)
 
     return () => {
       mounted = false
       clearTimeout(timeout)
     }
-  }, [])
+  }, [presetsToLoad]) // Ajout de la dépendance
 
-  // Si tout est chargé, on cache la barre
-  if (loadedCount === total) return null
+  // Si tout est chargé (ou s'il n'y a rien à charger), on cache
+  if (loadedCount >= total || total === 0) return null
 
   return (
     <div className="fixed bottom-4 right-4 z-50 bg-white/90 backdrop-blur border border-zinc-200 p-3 rounded-lg shadow-lg flex items-center gap-3 transition-all pointer-events-none">
@@ -51,10 +81,10 @@ export function BackgroundLoader() {
       
       <div className="flex flex-col">
         <span className="text-xs font-bold text-zinc-700 uppercase">
-          Optimisation du garage
+          Préparation des décors {/* Texte mis à jour */}
         </span>
         <span className="text-[10px] text-zinc-500">
-          {loadedCount} / {total} véhicules prêts
+          {loadedCount} / {total} environnements prêts
         </span>
       </div>
 

@@ -5,38 +5,29 @@ import { useState, useEffect } from 'react'
 
 export function InitialLoader() {
   const { active, progress } = useProgress()
-  const [shouldHide, setShouldHide] = useState(false)
+  const [visible, setVisible] = useState(true)
+  const [hasFinishedOnce, setHasFinishedOnce] = useState(false)
   
-  // Quand le chargement est terminé, on attend un peu puis on cache
   useEffect(() => {
-    if (!active && progress === 100 && !shouldHide) {
+    if (hasFinishedOnce) return
+
+    if (!active && progress === 100) {
       const timer = setTimeout(() => {
-        setShouldHide(true)
+        setVisible(false)
+        setHasFinishedOnce(true)
       }, 500)
+      
       return () => clearTimeout(timer)
     }
-  }, [active, progress, shouldHide])
+  }, [active, progress, hasFinishedOnce])
 
-  // Si un nouveau chargement démarre, on ré-affiche le loader
-  useEffect(() => {
-    if (!active) return
-
-    const frame = requestAnimationFrame(() => {
-      setShouldHide(false)
-    })
-
-    return () => cancelAnimationFrame(frame)
-  }, [active])
-
-  // On masque complètement le loader
-  if (shouldHide) {
+  if (!visible) {
     return null
   }
 
-  // Calculer l'opacité : fade out uniquement quand terminé à 100%
-  const opacity = (!active && progress === 100) ? 0 : 1
-  
-  // Afficher une barre minimale au début pour feedback visuel immédiat
+  const isFadingOut = !active && progress === 100 && !hasFinishedOnce
+  const opacity = isFadingOut ? 0 : 1
+
   const displayProgress = progress > 0 ? progress : 3
 
   return (
@@ -48,7 +39,6 @@ export function InitialLoader() {
         GARAGE 3D
       </h1>
       
-      {/* Barre de progression précise (remplace le spinner) */}
       <div className="w-64 h-1 bg-zinc-200 rounded-full overflow-hidden relative">
         <div 
           className="absolute top-0 left-0 h-full bg-black transition-all duration-200"

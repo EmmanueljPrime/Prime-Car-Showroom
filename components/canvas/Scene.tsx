@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Canvas, useLoader } from '@react-three/fiber'
+import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
+import { Canvas, useLoader, useFrame } from '@react-three/fiber'
 import { Environment, OrbitControls, Lightformer, Center, useProgress, ContactShadows } from '@react-three/drei'
 import { Box3, Group } from 'three'
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js'
@@ -62,30 +63,62 @@ type SceneProps = {
   onInitialModelReady?: () => void
 }
 
+type GroundAdjusterProps = {
+  centerRef: MutableRefObject<Group | null>
+  clearance: number
+  onGroundChange: Dispatch<SetStateAction<number>>
+  trigger: number
+}
+
+function GroundAdjuster({ centerRef, clearance, onGroundChange, trigger }: GroundAdjusterProps) {
+  const framesLeft = useRef(0)
+
+  useEffect(() => {
+    framesLeft.current = 45
+  }, [trigger])
+
+  useFrame(() => {
+    if (framesLeft.current <= 0) return
+    const group = centerRef.current
+    if (!group) return
+
+    framesLeft.current -= 1
+
+    const bounds = new Box3().setFromObject(group)
+    if (!Number.isFinite(bounds.min.y) || !Number.isFinite(bounds.max.y)) return
+
+    const nextGround = bounds.min.y - clearance
+    onGroundChange(prev => (Math.abs(prev - nextGround) > 1e-4 ? nextGround : prev))
+  })
+
+  return null
+}
+
 export default function Scene({ car, env, onInitialModelReady }: SceneProps) {
   const activeEnv = env ?? DEFAULT_ENV
   const hasSignaledInitial = useRef(false)
   const centerRef = useRef<Group | null>(null)
   const [groundY, setGroundY] = useState(0)
+  const [groundAdjustTrigger, setGroundAdjustTrigger] = useState(0)
   
   const { active, progress } = useProgress()
 
   useEffect(() => {
     hasSignaledInitial.current = false
-    const frame = requestAnimationFrame(() => setGroundY(0))
+    const frame = requestAnimationFrame(() => {
+      setGroundY(0)
+      setGroundAdjustTrigger(prev => prev + 1)
+    })
     return () => cancelAnimationFrame(frame)
   }, [car.path])
 
   useEffect(() => {
+    if (progress < 100) return
     const frame = requestAnimationFrame(() => {
-      const group = centerRef.current
-      if (!group) return
-      const bounds = new Box3().setFromObject(group)
-      const clearance = car.groundOffset ?? GROUND_CLEARANCE
-      setGroundY(bounds.min.y - clearance)
+      setGroundAdjustTrigger(prev => prev + 1)
     })
     return () => cancelAnimationFrame(frame)
-  }, [car, progress])
+  }, [progress, car.path])
 
   useEffect(() => {
     if (hasSignaledInitial.current) return
@@ -111,6 +144,13 @@ export default function Scene({ car, env, onInitialModelReady }: SceneProps) {
       <Canvas shadows dpr={[1, 2]} camera={{ position: [4, 1.5, 4], fov: 45 }}>
         
         <EnvPreloader />
+
+        <GroundAdjuster
+          centerRef={centerRef}
+          clearance={car.groundOffset ?? GROUND_CLEARANCE}
+          onGroundChange={setGroundY}
+          trigger={groundAdjustTrigger}
+        />
 
         {activeEnv.backgroundColor && (
           <color attach="background" args={[activeEnv.backgroundColor]} />
